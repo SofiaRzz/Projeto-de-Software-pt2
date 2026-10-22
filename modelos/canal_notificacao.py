@@ -1,12 +1,9 @@
 from abc import ABC, abstractmethod
-import os
 import logging
 import smtplib
 from email.message import EmailMessage
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()  # carrega as variáveis do .env para o os.getenv
+from modelos.configuracao import configuracao
 
 """
 rf10 notificações desacopladas
@@ -29,9 +26,9 @@ class CanalEmail(CanalNotificacao):
     def __init__(self):
         self.servidor_smtp = "smtp.gmail.com"
         self.porta = 587  # porta com STARTTLS (a 465 não conectava no seu computador)
-        self.remetente = os.getenv("EMAIL_REMETENTE")
-        self.senha_app = os.getenv("EMAIL_SENHA_APP")  # senha de app do Gmail, NÃO a senha normal
-
+        cfg = configuracao()
+        self.remetente = cfg.email_remetente
+        self.senha_app = cfg.email_senha_app
     def enviar(self, destinatario: str, mensagem: str) -> None:
         # sem credenciais no .env não dá pra enviar: avisa e segue sem travar o painel
         if not self.remetente or not self.senha_app:
@@ -66,8 +63,7 @@ class CanalPush(CanalNotificacao):
     """
     def __init__(self):
         # dá para trocar de servidor no .env (ex.: um ntfy próprio); o padrão é o público
-        self.servidor = os.getenv("NTFY_SERVIDOR", "https://ntfy.sh").rstrip("/")
-
+        self.servidor = configuracao().ntfy_servidor
     def enviar(self, destinatario: str, mensagem: str) -> None:
         # o ntfy limita o tamanho da mensagem (~4 KB); corta para não ser recusada
         if len(mensagem) > 1500:

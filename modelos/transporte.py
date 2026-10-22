@@ -3,6 +3,7 @@ class Transporte:
         self.origem = origem
         self.destino = destino
         self.retrato_horario = retrato_horario
+        self.id_transporte: str = ""  # preenchido pelo main (usado no historico e no notificador)
 
     def calcular_diferenca(self):
         return self.retrato_horario.calcular_diferenca()

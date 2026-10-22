@@ -9,10 +9,10 @@ from servicos.montador import montar_voo_dominio, montar_onibus_dominio
 from modelos.historico_retratos import HistoricoRetratos
 from modelos.viagem import Viagem
 from modelos.registro_transportes import RegistroTransportes #rf9
-from modelos.canal_notificacao import CanalEmail, CanalPush  # rf10
+from modelos.canal_creator import EmailCreator, PushCreator #rf10
+from modelos.configuracao import configuracao
 from modelos.usuario import UsuarioInscrito
 from servicos.notificador import Notificador
-import secrets
 
 historico = HistoricoRetratos()
 painel = RegistroTransportes() #rf9 p reconhecer transportes repetidos
@@ -45,9 +45,10 @@ def buscar_voo():
 
 def buscar_onibus():
     try:
-        cliente_onibus = GtfsUsuario(
-            "http://realtime4.mobilibus.com/web/4ch6j/trip-updates?accesskey=982a57efd77a9462bf1665696fb25984"
-        )
+        url = configuracao().gtfs_url
+        if not url:
+            raise KeyError("Variável 'GTFS_URL' não encontrada. Defina-a no arquivo .env.")
+        cliente_onibus = GtfsUsuario(url)
         atualizacoes = cliente_onibus.buscar_atualizacoes()
 
         atualizacao_valida = None
@@ -84,8 +85,6 @@ def cadastrar_usuario() -> UsuarioInscrito:
     while not nome:
         nome = input("O nome não pode ficar vazio. Digite seu nome:").strip()
 
-    inscricoes = []
-
     print("Canais disponíveis:")
     print(" 1 - E-mail")
     print(" 2 - Push (app ntfy no celular)")
@@ -94,19 +93,12 @@ def cadastrar_usuario() -> UsuarioInscrito:
     while escolha not in ("1", "2", "3"):
         escolha = input("Opção inválida. Digite 1, 2 ou 3: ").strip()
 
-    if escolha in ("1", "3"):
-        email = input("Digite seu e-mail: ").strip()
-        while not email or "@" not in email:
-            email = input("E-mail inválido, precisa ter '@'. Digite de novo: ").strip()
-        inscricoes.append((CanalEmail(), email))
-
-    if escolha in ("2", "3"):
-        # o tópico funciona como "senha": quem souber o nome consegue ler as notificações,
-        # por isso geramos um nome difícil de adivinhar
-        topico = f"painel-transporte-{secrets.token_hex(4)}"
-        print(f"\nInstale o app 'ntfy' no celular e assine o tópico: {topico}")
-        input("Quando terminar de assinar, aperte Enter... ")
-        inscricoes.append((CanalPush(), topico))
+    CREATORS = {
+    "1": [EmailCreator()],
+    "2": [PushCreator()],
+    "3": [EmailCreator(), PushCreator()],
+    }
+    inscricoes = [c.criar_inscricao() for c in CREATORS[escolha]]
 
     return UsuarioInscrito(nome, inscricoes)
 
